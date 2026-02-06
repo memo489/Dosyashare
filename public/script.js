@@ -97,8 +97,19 @@ function updateFilesList() {
 window.removeFile = function(index) {
     selectedFiles.splice(index, 1);
     updateFilesList();
-    if (selectedFiles.length === 0) {
-        hideProgressSection();
+    if (result.success) {
+    // İNDİRME SAYFASINA YÖNLENDİR
+    const downloadPageUrl = `/download.html?id=${result.transferId}`;
+    
+    showToast(`✅ ${result.files.length} dosya yüklendi!`, 'success');
+    
+    // 2 saniye sonra indirme sayfasına git
+    setTimeout(() => {
+        window.location.href = downloadPageUrl;
+    }, 1500);
+    
+    return true;
+    }
     }
 };
 
