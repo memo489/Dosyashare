@@ -226,7 +226,7 @@ app.post('/api/upload', upload.array('files'), async (req, res) => {
         senderEmail,
         receiverEmail,
         message,
-        password ? await bcrypt.hash(password, 10) : '',
+        '',
         expiresAt.toISOString(),
         totalSize,
         files.length
