@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DOSYASHARE - Dosyalarınız Hazır</title>
+    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-bolt"></i>
+                <span>DOSYASHARE</span>
+            </div>
+        </header>
+
+        <main class="main-content">
+            <div class="download-page" id="downloadPage">
+                <!-- JavaScript ile dolacak -->
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Dosyalarınız hazırlanıyor...</p>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // URL'den Transfer ID'yi al
+        const urlParams = new URLSearchParams(window.location.search);
+        const transferId = urlParams.get('id');
+        
+        if (!transferId) {
+            document.getElementById('downloadPage').innerHTML = `
+                <div class="error-card">
+                    <i class="fas fa-exclamation-triangle fa-3x"></i>
+                    <h2>Geçersiz Link</h2>
+                    <p>Bu dosya transfer linki geçersiz veya süresi dolmuş.</p>
+                    <a href="/" class="btn btn-primary">Ana Sayfaya Dön</a>
+                </div>
+            `;
+        } else {
+            // Dosya bilgilerini API'den al
+            fetch(`/api/files/${transferId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (!data.success) throw new Error(data.error);
+                    
+                    // WeTransfer tarzı indirme sayfasını göster
+                    renderDownloadPage(data, transferId);
+                })
+                .catch(error => {
+                    document.getElementById('downloadPage').innerHTML = `
+                        <div class="error-card">
+                            <i class="fas fa-exclamation-triangle fa-3x"></i>
+                            <h2>Dosya Bulunamadı</h2>
+                            <p>${error.message || 'Bu dosyalar artık mevcut değil.'}</p>
+                            <a href="/" class="btn btn-primary">Yeni Dosya Gönder</a>
+                        </div>
+                    `;
+                });
+        }
+        
+        function renderDownloadPage(data, transferId) {
+            const totalSizeMB = (data.totalSize / (1024 * 1024)).toFixed(1);
+            const currentUrl = window.location.href;
+            
+            document.getElementById('downloadPage').innerHTML = `
+                <div class="download-card">
+                    <div class="success-header">
+                        <i class="fas fa-check-circle success-icon"></i>
+                        <h1>Dosyalarınız Hazır!</h1>
+                        <p class="success-subtitle">${data.count} dosya • ${totalSizeMB} MB</p>
+                    </div>
+                    
+                    <div class="share-section">
+                        <h3><i class="fas fa-share-alt"></i> Paylaşım Linkiniz</h3>
+                        <div class="link-container">
+                            <input type="text" class="share-link" value="${currentUrl}" readonly id="shareLink">
+                            <button class="btn btn-secondary" onclick="copyToClipboard()">
+                                <i class="fas fa-copy"></i> Kopyala
+                            </button>
+                        </div>
+                        <p class="link-info">Bu linki istediğiniz kişiyle paylaşın</p>
+                    </div>
+                    
+                    <div class="files-section">
+                        <h3><i class="fas fa-file"></i> Dosyalar (${data.count})</h3>
+                        <div class="files-list">
+                            ${data.files.map(file => `
+                                <div class="file-item-download">
+                                    <div class="file-icon">
+                                        <i class="fas ${getFileIcon(file.name)}"></i>
+                                    </div>
+                                    <div class="file-details">
+                                        <h4>${file.name}</h4>
+                                        <p>${formatFileSize(file.size)}</p>
+                                    </div>
+                                    <a href="${file.url}" class="btn btn-primary" download>
+                                        <i class="fas fa-download"></i> İndir
+                                    </a>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                    
+                    ${data.count > 1 ? `
+                    <div class="bulk-download">
+                        <a href="/api/download-zip/${transferId}" class="btn btn-large btn-success">
+                            <i class="fas fa-file-archive"></i> Tüm Dosyaları ZIP Olarak İndir
+                        </a>
+                    </div>
+                    ` : ''}
+                    
+                    <div class="info-section">
+                        <div class="info-card">
+                            <i class="fas fa-id-badge"></i>
+                            <div>
+                                <h4>Transfer ID</h4>
+                                <p>${transferId}</p>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <i class="fas fa-clock"></i>
+                            <div>
+                                <h4>Geçerlilik Süresi</h4>
+                                <p>7 gün</p>
+                            </div>
+                        </div>
+                        <div class="info-card">
+                            <i class="fas fa-shield-alt"></i>
+                            <div>
+                                <h4>Güvenlik</h4>
+                                <p>Herkese açık link</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="action-buttons">
+                        <a href="/" class="btn btn-outline">
+                            <i class="fas fa-plus"></i> Yeni Transfer
+                        </a>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function copyToClipboard() {
+            const linkInput = document.getElementById('shareLink');
+            linkInput.select();
+            document.execCommand('copy');
+            
+            // Kopyalama bildirimi
+            const btn = event.target.closest('button');
+            const originalHTML = btn.innerHTML;
+            btn.innerHTML = '<i class="fas fa-check"></i> Kopyalandı!';
+            btn.classList.add('btn-success');
+            
+            setTimeout(() => {
+                btn.innerHTML = originalHTML;
+                btn.classList.remove('btn-success');
+            }, 2000);
+        }
+        
+        function getFileIcon(filename) {
+            const ext = filename.split('.').pop().toLowerCase();
+            if (['jpg', 'jpeg', 'png', 'gif', 'webp'].includes(ext)) return 'fa-file-image';
+            if (ext === 'pdf') return 'fa-file-pdf';
+            if (['doc', 'docx'].includes(ext)) return 'fa-file-word';
+            if (['zip', 'rar', '7z'].includes(ext)) return 'fa-file-archive';
+            if (['mp4', 'avi', 'mov'].includes(ext)) return 'fa-file-video';
+            if (['mp3', 'wav'].includes(ext)) return 'fa-file-audio';
+            return 'fa-file';
+        }
+        
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' Bytes';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+            if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+            return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+        }
+    </script>
+</body>
+</html>
