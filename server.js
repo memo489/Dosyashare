@@ -155,7 +155,37 @@ app.get('/download.html', (req, res) => {
   
   res.send(html);
 });
-
+// ZIP İndirme Endpoint'i
+app.get('/api/download-zip/:transferId', (req, res) => {
+    const transferId = req.params.transferId;
+    const transferDir = path.join(uploadsDir, transferId);
+    
+    if (!fs.existsSync(transferDir)) {
+        return res.status(404).json({ error: 'Transfer bulunamadı' });
+    }
+    
+    const files = fs.readdirSync(transferDir);
+    if (files.length === 0) {
+        return res.status(404).json({ error: 'Dosya bulunamadı' });
+    }
+    
+    const zipFileName = `dosyashare-${transferId}.zip`;
+    
+    res.writeHead(200, {
+        'Content-Type': 'application/zip',
+        'Content-Disposition': `attachment; filename="${zipFileName}"`
+    });
+    
+    const archive = archiver('zip', { zlib: { level: 9 } });
+    archive.pipe(res);
+    
+    files.forEach(filename => {
+        const filePath = path.join(transferDir, filename);
+        archive.file(filePath, { name: filename });
+    });
+    
+    archive.finalize();
+});
 // Ana sayfa
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'index.html'));
